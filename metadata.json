@@ -1,0 +1,10 @@
+{
+  "name": "مستخرج النصوص الذكي من الصور (OCR)",
+  "description": "تطبيق عربي فائق الدقة لاستخراج وقراءة النصوص من الصور والمستندات والخط اليدوي والفواتير مع التحرير، والترجمة، والنطق الصوتي، والتصدير.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
