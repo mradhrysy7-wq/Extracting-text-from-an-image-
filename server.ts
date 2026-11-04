@@ -44,7 +44,7 @@ app.get('/healthz', (_req: Request, res: Response) => {
 
 // Google AdSense ads.txt verification route
 app.get('/ads.txt', (_req: Request, res: Response) => {
-  const pubId = process.env.ADSENSE_PUB_ID || 'pub-XXXXXXXXXXXXXXXX';
+  const pubId = process.env.ADSENSE_PUB_ID || 'pub-6038377293496140';
   res.type('text/plain').send(`google.com, ${pubId}, DIRECT, f08c47fec0942fa0\n`);
 });
 
