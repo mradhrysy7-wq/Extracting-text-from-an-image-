@@ -81,36 +81,215 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#039;');
 }
 
-export function printDocument(text: string, title = 'المستند المستخرج') {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
-  printWindow.document.write(`
+export interface WhitePagePdfOptions {
+  title?: string;
+  text: string;
+  fontSize?: 'small' | 'medium' | 'large';
+  lineHeight?: 'compact' | 'normal' | 'relaxed';
+  alignment?: 'right' | 'center' | 'justify';
+  includeDate?: boolean;
+  includeHeader?: boolean;
+  imageThumbnail?: string | null;
+}
+
+export function exportWhitePagePdf(options: WhitePagePdfOptions) {
+  const {
+    title = 'المستند المستخرج',
+    text,
+    fontSize = 'medium',
+    lineHeight = 'normal',
+    alignment = 'right',
+    includeDate = true,
+    includeHeader = true,
+    imageThumbnail = null,
+  } = options;
+
+  const fontSizes = {
+    small: '13pt',
+    medium: '15pt',
+    large: '18pt',
+  };
+
+  const lineHeights = {
+    compact: '1.6',
+    normal: '1.9',
+    relaxed: '2.3',
+  };
+
+  const htmlContent = `
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
       <meta charset="utf-8">
-      <title>${title}</title>
+      <title>${title || 'مستند PDF صفحة بيضاء'}</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
       <style>
-        body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; line-height: 1.8; direction: rtl; padding: 30px; color: #1e293b; }
-        h1 { color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 10px; }
-        .meta { color: #64748b; font-size: 12px; margin-bottom: 20px; }
-        .content { white-space: pre-wrap; font-size: 16px; line-height: 1.8; }
+        @page {
+          size: A4 portrait;
+          margin: 20mm 18mm 20mm 18mm;
+        }
         @media print {
-          body { padding: 0; }
+          html, body {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .page-container {
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+        }
+        * {
+          box-sizing: border-box;
+        }
+        body {
+          background-color: #ffffff;
+          color: #111827;
+          font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+          margin: 0;
+          padding: 30px;
+          direction: rtl;
+          -webkit-font-smoothing: antialiased;
+        }
+        .page-container {
+          max-width: 800px;
+          margin: 0 auto;
+          background: #ffffff;
+        }
+        .header {
+          border-bottom: 2px solid #0f766e;
+          padding-bottom: 12px;
+          margin-bottom: 24px;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+        }
+        .doc-title {
+          font-size: 22pt;
+          font-weight: 800;
+          color: #0f766e;
+          margin: 0 0 6px 0;
+        }
+        .meta-date {
+          font-size: 10pt;
+          color: #64748b;
+          font-family: sans-serif;
+        }
+        .thumbnail-container {
+          margin-bottom: 20px;
+          text-align: center;
+        }
+        .thumbnail-img {
+          max-height: 160px;
+          max-width: 100%;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+        }
+        .content {
+          font-size: ${fontSizes[fontSize]};
+          line-height: ${lineHeights[lineHeight]};
+          text-align: ${alignment};
+          white-space: pre-wrap;
+          word-break: break-word;
+          color: #1e293b;
+        }
+        .footer {
+          margin-top: 40px;
+          padding-top: 10px;
+          border-top: 1px solid #e2e8f0;
+          display: flex;
+          justify-content: space-between;
+          font-size: 9pt;
+          color: #94a3b8;
         }
       </style>
     </head>
     <body>
-      <h1>${title}</h1>
-      <div class="meta">تم الاستخراج بواسطة بصيرة الذكي في: ${new Date().toLocaleString('ar-SA')}</div>
-      <div class="content">${escapeHtml(text)}</div>
+      <div class="page-container">
+        ${
+          includeHeader
+            ? `
+          <div class="header">
+            <div>
+              ${title ? `<h1 class="doc-title">${escapeHtml(title)}</h1>` : ''}
+              ${includeDate ? `<div class="meta-date">تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-SA')}</div>` : ''}
+            </div>
+            <div style="font-size: 10pt; font-weight: bold; color: #0f766e;">بصيرة OCR</div>
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          imageThumbnail
+            ? `
+          <div class="thumbnail-container">
+            <img src="${imageThumbnail}" alt="المستند الأصلي" class="thumbnail-img" />
+          </div>
+        `
+            : ''
+        }
+
+        <div class="content">${escapeHtml(text)}</div>
+
+        <div class="footer">
+          <span>مستند نصي مستخرج بدقة عالية</span>
+          <span>صفحة 1</span>
+        </div>
+      </div>
+
       <script>
-        window.onload = function() { window.print(); window.close(); }
+        window.onload = function() {
+          setTimeout(function() {
+            window.print();
+          }, 350);
+        };
       </script>
     </body>
     </html>
-  `);
-  printWindow.document.close();
+  `;
+
+  // Use hidden iframe or print window
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  } else {
+    // Fallback if popup blocked: create temporary hidden iframe
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    iframe.contentDocument?.write(htmlContent);
+    iframe.contentDocument?.close();
+    iframe.contentWindow?.focus();
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      setTimeout(() => document.body.removeChild(iframe), 2000);
+    }, 500);
+  }
+}
+
+export function printDocument(text: string, title = 'المستند المستخرج') {
+  exportWhitePagePdf({
+    title,
+    text,
+    fontSize: 'medium',
+    lineHeight: 'normal',
+    alignment: 'right',
+    includeDate: true,
+    includeHeader: true,
+  });
 }
 
 // Speech synthesis helper

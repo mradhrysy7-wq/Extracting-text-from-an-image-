@@ -13,6 +13,7 @@ import {
   Receipt, 
   Languages, 
   RotateCw, 
+  RefreshCw,
   X, 
   ZoomIn,
   ShieldCheck,
@@ -187,7 +188,18 @@ export default function App() {
       setHistory((prev) => [newHistoryItem, ...prev.slice(0, 49)]); // keep last 50
     } catch (err: any) {
       console.error('OCR Extraction error:', err);
-      setErrorMessage(err?.message || 'حدث خطأ غير متوقع أثناء استخراج النص.');
+      let raw = err?.message || '';
+      if (
+        raw.includes('503') ||
+        raw.includes('high demand') ||
+        raw.includes('UNAVAILABLE') ||
+        raw.includes('overloaded')
+      ) {
+        raw = 'يشهد خادم الذكاء الاصطناعي ضغطاً مؤقتاً في هذه اللحظة. يرجى النقر على زر "إعادة المحاولة" الآن.';
+      } else if (raw.includes('RESOURCE_EXHAUSTED') || raw.includes('429')) {
+        raw = 'تم بلوغ الحد المؤقت للطلبات، يرجى الانتظار بضع ثوانٍ ثم النقر على "إعادة المحاولة".';
+      }
+      setErrorMessage(raw || 'حدث خطأ غير متوقع أثناء استخراج النص.');
     } finally {
       setIsProcessing(false);
     }
@@ -313,6 +325,16 @@ export default function App() {
               <div>
                 <p className="font-bold mb-1">تعذر استخراج النص</p>
                 <p className="text-xs leading-relaxed">{errorMessage}</p>
+                {imageDataUrl && (
+                  <button
+                    onClick={handleStartOcr}
+                    disabled={isProcessing}
+                    className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin' : ''}`} />
+                    إعادة المحاولة الآن
+                  </button>
+                )}
               </div>
             </div>
             <button

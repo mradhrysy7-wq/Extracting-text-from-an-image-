@@ -29,6 +29,7 @@ import {
   printDocument,
   TextSpeechPlayer,
 } from '../utils/textExport';
+import { WhitePagePdfModal } from './WhitePagePdfModal';
 
 interface ResultsWorkspaceProps {
   imageSrc: string;
@@ -57,6 +58,7 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [replaceQuery, setReplaceQuery] = useState('');
   const [viewLayout, setViewLayout] = useState<'split' | 'textOnly'>('split');
+  const [isWhitePdfModalOpen, setIsWhitePdfModalOpen] = useState(false);
 
   // AI interactive question state
   const [questionInput, setQuestionInput] = useState('');
@@ -552,6 +554,16 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
 
             <div className="flex flex-wrap items-center gap-2">
               
+              {/* Export to Clean White Page PDF (Optional) */}
+              <button
+                onClick={() => setIsWhitePdfModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-900/60 shadow-2xs transition-colors cursor-pointer"
+                title="تصدير النص في صفحة بيضاء بتنسيق PDF مع خيارات التخصيص"
+              >
+                <FileDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                <span>صفحة بيضاء PDF (اختياري)</span>
+              </button>
+
               {/* Download TXT */}
               <button
                 onClick={() => downloadTextFile(editableText, 'النص_المستخرج.txt')}
@@ -595,6 +607,14 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
         </div>
 
       </div>
+
+      {/* Clean White Page PDF Export Modal */}
+      <WhitePagePdfModal
+        isOpen={isWhitePdfModalOpen}
+        onClose={() => setIsWhitePdfModalOpen(false)}
+        extractedText={activeTab === 'translation' && activeTranslation ? activeTranslation : editableText}
+        imageThumbnail={imageSrc}
+      />
 
     </div>
   );

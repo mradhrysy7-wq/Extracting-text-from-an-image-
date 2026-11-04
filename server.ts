@@ -170,15 +170,52 @@ ${summarize ? '- قم بإعداد ملخص موجز وشامل لأهم الن�
       text: userPrompt,
     };
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: { parts: [imagePart, textPart] },
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-      },
-    });
+    // Robust multi-model fallback sequence to gracefully handle 503 high demand spikes
+    const fallbackModels: Array<{ model: string; thinkingConfig?: { thinkingLevel: ThinkingLevel } }> = [
+      { model: 'gemini-3.8-flash', thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } },
+      { model: 'gemini-flash-latest' },
+      { model: 'gemini-3.1-flash-lite' },
+    ];
+
+    let response: any = null;
+    let lastError: any = null;
+
+    for (let i = 0; i < fallbackModels.length; i++) {
+      const candidate = fallbackModels[i];
+      try {
+        const config: any = {
+          systemInstruction,
+          responseMimeType: 'application/json',
+        };
+        if (candidate.thinkingConfig) {
+          config.thinkingConfig = candidate.thinkingConfig;
+        }
+
+        response = await ai.models.generateContent({
+          model: candidate.model,
+          contents: { parts: [imagePart, textPart] },
+          config,
+        });
+
+        if (response && response.text) {
+          break; // Success!
+        }
+      } catch (err: any) {
+        lastError = err;
+        const errDetail = err?.message || JSON.stringify(err) || String(err);
+        console.warn(`Model ${candidate.model} attempt ${i + 1} failed: ${errDetail}`);
+
+        // If there are more models to try, pause briefly and try the next candidate
+        if (i < fallbackModels.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 400));
+          continue;
+        }
+      }
+    }
+
+    if (!response || !response.text) {
+      throw lastError || new Error('تعذر الحصول على استجابة من نموذج الذكاء الاصطناعي.');
+    }
 
     const rawResult = response.text || '{}';
     let parsedData;
@@ -202,8 +239,26 @@ ${summarize ? '- قم بإعداد ملخص موجز وشامل لأهم الن�
     });
   } catch (error: any) {
     console.error('Error in /api/ocr:', error);
+
+    // Friendly Arabic translation of technical error messages
+    let friendlyMessage = 'حدث خطأ أثناء معالجة الصورة واستخراج النص.';
+    const rawMsg = typeof error === 'string' ? error : (error?.message || JSON.stringify(error) || '');
+
+    if (
+      rawMsg.includes('503') ||
+      rawMsg.includes('high demand') ||
+      rawMsg.includes('UNAVAILABLE') ||
+      rawMsg.includes('overloaded')
+    ) {
+      friendlyMessage = 'يشهد خادم الذكاء الاصطناعي ضغطاً مؤقتاً في هذه اللحظة. يرجى النقر على زر "إعادة المحاولة" الآن.';
+    } else if (rawMsg.includes('RESOURCE_EXHAUSTED') || rawMsg.includes('429')) {
+      friendlyMessage = 'تم بلوغ الحد المؤقت للطلبات، يرجى الانتظار بضع ثوانٍ ثم النقر على "إعادة المحاولة".';
+    } else if (rawMsg.includes('API_KEY') || rawMsg.includes('PERMISSION_DENIED')) {
+      friendlyMessage = 'يرجى التحقق من صلاحية مفتاح Gemini API في إعدادات التطبيق.';
+    }
+
     return res.status(500).json({
-      error: error?.message || 'حدث خطأ أثناء معالجة الصورة واستخراج النص.',
+      error: friendlyMessage,
     });
   }
 });
