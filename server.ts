@@ -42,6 +42,12 @@ app.get('/healthz', (_req: Request, res: Response) => {
   res.status(200).send('OK');
 });
 
+// Google AdSense ads.txt verification route
+app.get('/ads.txt', (_req: Request, res: Response) => {
+  const pubId = process.env.ADSENSE_PUB_ID || 'pub-XXXXXXXXXXXXXXXX';
+  res.type('text/plain').send(`google.com, ${pubId}, DIRECT, f08c47fec0942fa0\n`);
+});
+
 // OCR Extraction Route
 app.post('/api/ocr', async (req: Request, res: Response) => {
   try {
