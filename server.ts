@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -35,6 +36,11 @@ export interface OcrRequestPayload {
   translateTo?: string; // e.g. 'none', 'en', 'ar', 'fr', 'tr', 'es'
   summarize?: boolean;
 }
+
+// Health Check endpoint (for Render / Cloud Run)
+app.get('/healthz', (_req: Request, res: Response) => {
+  res.status(200).send('OK');
+});
 
 // OCR Extraction Route
 app.post('/api/ocr', async (req: Request, res: Response) => {
