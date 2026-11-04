@@ -1,6 +1,6 @@
-// Client-side image pre-processing to ensure ultra-fast uploads and lightning-speed OCR
+// Client-side image pre-processing for ultra-fast uploads and lightning-speed OCR
 
-export async function optimizeImageForOcr(dataUrl: string, maxDimension = 1920, quality = 0.88): Promise<string> {
+export async function optimizeImageForOcr(dataUrl: string, maxDimension = 1400, quality = 0.80): Promise<string> {
   return new Promise((resolve) => {
     // If it's an SVG, it's already tiny vector
     if (dataUrl.startsWith('data:image/svg+xml')) {
@@ -11,12 +11,12 @@ export async function optimizeImageForOcr(dataUrl: string, maxDimension = 1920, 
     img.onload = () => {
       let { width, height } = img;
 
-      // If image is already smaller than maxDimension and not excessively large in data size, keep it
-      if (width <= maxDimension && height <= maxDimension && dataUrl.length < 1_500_000) {
+      // If image is already smaller than maxDimension and lightweight (< 350KB base64), keep it
+      if (width <= maxDimension && height <= maxDimension && dataUrl.length < 350_000) {
         return resolve(dataUrl);
       }
 
-      // Calculate proportional scale
+      // Calculate proportional scale keeping high-res readability for Arabic letters
       if (width > maxDimension || height > maxDimension) {
         if (width > height) {
           height = Math.round((height * maxDimension) / width);
@@ -33,12 +33,12 @@ export async function optimizeImageForOcr(dataUrl: string, maxDimension = 1920, 
       const ctx = canvas.getContext('2d');
       if (!ctx) return resolve(dataUrl);
 
-      // High quality smoothing for text readability
+      // High quality smoothing for clear text lines and diacritics
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Export as JPEG with optimal quality
+      // Export as JPEG with optimal compression
       const optimized = canvas.toDataURL('image/jpeg', quality);
       resolve(optimized);
     };
@@ -47,3 +47,4 @@ export async function optimizeImageForOcr(dataUrl: string, maxDimension = 1920, 
     img.src = dataUrl;
   });
 }
+

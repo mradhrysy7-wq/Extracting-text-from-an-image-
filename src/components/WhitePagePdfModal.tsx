@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   X, 
   FileDown, 
@@ -12,9 +12,20 @@ import {
   Calendar, 
   Image as ImageIcon,
   Check,
-  FileText
+  FileText,
+  Share2,
+  Loader2,
+  Send,
+  Copy
 } from 'lucide-react';
-import { exportWhitePagePdf, WhitePagePdfOptions } from '../utils/textExport';
+import { 
+  exportWhitePagePdf, 
+  WhitePagePdfOptions, 
+  generatePdfBlobFromElement, 
+  sharePdfDirectly,
+  copyPdfToClipboard
+} from '../utils/textExport';
+import { SharePdfModal } from './SharePdfModal';
 
 interface WhitePagePdfModalProps {
   isOpen: boolean;
@@ -29,6 +40,7 @@ export const WhitePagePdfModal: React.FC<WhitePagePdfModalProps> = ({
   extractedText,
   imageThumbnail,
 }) => {
+  const sheetRef = useRef<HTMLDivElement>(null);
   const [docTitle, setDocTitle] = useState('المستند المستخرج');
   const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [lineHeight, setLineHeight] = useState<'compact' | 'normal' | 'relaxed'>('normal');
@@ -37,6 +49,14 @@ export const WhitePagePdfModal: React.FC<WhitePagePdfModalProps> = ({
   const [includeHeader, setIncludeHeader] = useState(true);
   const [includeImageThumbnail, setIncludeImageThumbnail] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [copiedPdfInModal, setCopiedPdfInModal] = useState(false);
+  const [shareResult, setShareResult] = useState<{
+    blob: Blob | null;
+    shareUrl?: string;
+    downloadUrl?: string;
+    fileName: string;
+  } | null>(null);
 
   if (!isOpen) return null;
 
@@ -57,6 +77,55 @@ export const WhitePagePdfModal: React.FC<WhitePagePdfModalProps> = ({
     setTimeout(() => {
       setIsExporting(false);
     }, 1500);
+  };
+
+  const handleSharePdf = async () => {
+    if (!sheetRef.current) return;
+    setIsSharing(true);
+    try {
+      const blob = await generatePdfBlobFromElement(sheetRef.current);
+      const safeTitle = (docTitle.trim() || 'مستند_مستخرج').replace(/[\/\\?%*:|"<>]/g, '_');
+      const result = await sharePdfDirectly({
+        blob,
+        title: docTitle.trim() || 'مستند PDF مستخرج',
+        text: extractedText,
+        attemptNativeShare: true,
+      });
+
+      setShareResult({
+        blob: result.blob,
+        shareUrl: result.shareUrl,
+        downloadUrl: result.downloadUrl,
+        fileName: result.fileName,
+      });
+    } catch (err) {
+      console.error('Error sharing PDF directly:', err);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleCopyPdfInModal = async () => {
+    if (!sheetRef.current) return;
+    setIsSharing(true);
+    try {
+      const blob = await generatePdfBlobFromElement(sheetRef.current);
+      const safeTitle = (docTitle.trim() || 'مستند_مستخرج').replace(/[\/\\?%*:|"<>]/g, '_');
+      const result = await sharePdfDirectly({
+        blob,
+        title: docTitle.trim() || 'مستند PDF مستخرج',
+        text: extractedText,
+        attemptNativeShare: false,
+      });
+
+      await copyPdfToClipboard(blob, docTitle.trim() || 'مستند PDF مستخرج', result.shareUrl || result.downloadUrl);
+      setCopiedPdfInModal(true);
+      setTimeout(() => setCopiedPdfInModal(false), 3000);
+    } catch (err) {
+      console.error('Error copying PDF in modal:', err);
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const getFontSizeClass = () => {
@@ -298,14 +367,42 @@ export const WhitePagePdfModal: React.FC<WhitePagePdfModalProps> = ({
               )}
             </div>
 
-            {/* Main Action Export Button */}
+            {/* Direct Share PDF Button (Without Downloading) */}
+            <button
+              onClick={handleSharePdf}
+              disabled={isSharing || isExporting}
+              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer active:scale-98 disabled:opacity-50"
+            >
+              {isSharing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Share2 className="w-4 h-4" />
+              )}
+              <span>{isSharing ? 'جاري تجهيز ومشاركة الـ PDF...' : 'مشاركة ملف PDF مباشرة (بدون تحميل)'}</span>
+            </button>
+
+            {/* Copy PDF File Button */}
+            <button
+              onClick={handleCopyPdfInModal}
+              disabled={isSharing || isExporting}
+              className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border ${
+                copiedPdfInModal
+                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                  : 'bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-white border-slate-700'
+              }`}
+            >
+              {copiedPdfInModal ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4 text-emerald-400" />}
+              <span>{copiedPdfInModal ? 'تم نسخ ملف الـ PDF ورابطه!' : 'نسخ ملف الـ PDF إلى الحافظة'}</span>
+            </button>
+
+            {/* Standard Download PDF Button */}
             <button
               onClick={handleExportPdf}
-              disabled={isExporting}
-              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-rose-600 via-rose-500 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-sm shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
+              disabled={isExporting || isSharing}
+              className="w-full py-2 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 font-medium text-[11px] flex items-center justify-center gap-2 transition-all cursor-pointer border border-slate-800"
             >
-              <FileDown className="w-4 h-4" />
-              <span>{isExporting ? 'جاري تجهيز ملف PDF...' : 'حفظ وتحميل بصيغة PDF'}</span>
+              <FileDown className="w-3.5 h-3.5 text-rose-400" />
+              <span>{isExporting ? 'جاري التجهيز...' : 'أو تحميل وحفظ كملف في الجهاز'}</span>
             </button>
 
           </div>
@@ -321,9 +418,11 @@ export const WhitePagePdfModal: React.FC<WhitePagePdfModalProps> = ({
               <span>مقاس قياسي (210 × 297 مم)</span>
             </div>
 
-            {/* The Realistic White A4 Sheet */}
-            <div className="w-full max-w-[620px] bg-white text-slate-900 rounded-lg shadow-2xl p-8 sm:p-12 min-h-[640px] flex flex-col justify-between border border-slate-300 relative transition-all">
-              
+            {/* The Realistic White A4 Sheet with ref */}
+            <div
+              ref={sheetRef}
+              className="w-full max-w-[620px] bg-white text-slate-900 rounded-lg shadow-2xl p-8 sm:p-12 min-h-[640px] flex flex-col justify-between border border-slate-300 relative transition-all"
+            >
               <div>
                 {/* Header Section */}
                 {includeHeader && (
@@ -376,26 +475,53 @@ export const WhitePagePdfModal: React.FC<WhitePagePdfModalProps> = ({
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
-          <span>يتم إنشاء ملف PDF عالي الدقة (Vector PDF) مع دعم كامل للخط العربي وعلامات التشكيل.</span>
+        <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-wrap justify-between items-center gap-3 text-xs text-slate-400">
+          <span>يتم إنشاء ملف PDF عالي الدقة يدعم الخط العربي مع إمكانية النسخ والمشاركة الفورية بدون حفظ.</span>
           <div className="flex gap-2">
             <button
               onClick={onClose}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold transition-colors cursor-pointer"
             >
-              إلغاء
+              إغلاق
             </button>
             <button
-              onClick={handleExportPdf}
-              className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-md shadow-rose-600/20 transition-all cursor-pointer"
+              onClick={handleCopyPdfInModal}
+              disabled={isSharing}
+              className={`px-4 py-2 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                copiedPdfInModal
+                  ? 'bg-emerald-600 text-white border-emerald-500'
+                  : 'bg-slate-800 hover:bg-slate-700 text-emerald-300 border-slate-700'
+              }`}
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span>طباعة / حفظ PDF</span>
+              {copiedPdfInModal ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedPdfInModal ? 'تم نسخ الملف!' : 'نسخ ملف الـ PDF'}</span>
+            </button>
+            <button
+              onClick={handleSharePdf}
+              disabled={isSharing}
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{isSharing ? 'جاري المشاركة...' : 'مشاركة الـ PDF'}</span>
             </button>
           </div>
         </div>
 
       </div>
+
+      {/* Share Modal Dialog */}
+      {shareResult && (
+        <SharePdfModal
+          isOpen={true}
+          onClose={() => setShareResult(null)}
+          pdfBlob={shareResult.blob}
+          fileName={shareResult.fileName}
+          shareUrl={shareResult.shareUrl}
+          downloadUrl={shareResult.downloadUrl}
+          title={docTitle.trim() || 'مستند PDF مستخرج'}
+        />
+      )}
     </div>
   );
 };
+

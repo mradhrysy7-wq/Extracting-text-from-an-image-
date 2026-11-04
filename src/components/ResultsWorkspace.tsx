@@ -19,7 +19,9 @@ import {
   Columns,
   MessageSquare,
   FileDown,
-  Zap
+  Zap,
+  Share2,
+  Loader2
 } from 'lucide-react';
 import { OcrResultData, OcrMode } from '../types/ocr';
 import {
@@ -28,8 +30,13 @@ import {
   downloadDocFile,
   printDocument,
   TextSpeechPlayer,
+  createWhitePagePdfBlob,
+  sharePdfDirectly,
+  copyPdfToClipboard,
 } from '../utils/textExport';
 import { WhitePagePdfModal } from './WhitePagePdfModal';
+import { SharePdfModal } from './SharePdfModal';
+
 
 interface ResultsWorkspaceProps {
   imageSrc: string;
@@ -59,6 +66,16 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
   const [replaceQuery, setReplaceQuery] = useState('');
   const [viewLayout, setViewLayout] = useState<'split' | 'textOnly'>('split');
   const [isWhitePdfModalOpen, setIsWhitePdfModalOpen] = useState(false);
+  const [isDirectSharingPdf, setIsDirectSharingPdf] = useState(false);
+  const [isDirectCopyingPdf, setIsDirectCopyingPdf] = useState(false);
+  const [copiedPdfDirect, setCopiedPdfDirect] = useState(false);
+  const [directShareData, setDirectShareData] = useState<{
+    blob: Blob | null;
+    fileName: string;
+    shareUrl?: string;
+    downloadUrl?: string;
+    title: string;
+  } | null>(null);
 
   // AI interactive question state
   const [questionInput, setQuestionInput] = useState('');
@@ -152,6 +169,74 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
     if (!questionInput.trim()) return;
     setIsAskingQuestion(true);
     handleEnhance('ask_question', questionInput).finally(() => setIsAskingQuestion(false));
+  };
+
+  const handleDirectSharePdf = async () => {
+    const textToShare = activeTab === 'translation' && activeTranslation ? activeTranslation : editableText;
+    if (!textToShare.trim()) return;
+
+    setIsDirectSharingPdf(true);
+    try {
+      const docTitle = 'المستند المستخرج';
+      const blob = await createWhitePagePdfBlob({
+        title: docTitle,
+        text: textToShare,
+        imageThumbnail: imageSrc,
+        includeDate: true,
+        includeHeader: true,
+      });
+
+      const result = await sharePdfDirectly({
+        blob,
+        title: docTitle,
+        text: textToShare,
+        attemptNativeShare: true,
+      });
+
+      setDirectShareData({
+        blob: result.blob,
+        fileName: result.fileName,
+        shareUrl: result.shareUrl,
+        downloadUrl: result.downloadUrl,
+        title: docTitle,
+      });
+    } catch (err) {
+      console.error('Failed to create and share PDF directly:', err);
+    } finally {
+      setIsDirectSharingPdf(false);
+    }
+  };
+
+  const handleDirectCopyPdf = async () => {
+    const textToShare = activeTab === 'translation' && activeTranslation ? activeTranslation : editableText;
+    if (!textToShare.trim()) return;
+
+    setIsDirectCopyingPdf(true);
+    try {
+      const docTitle = 'المستند المستخرج';
+      const blob = await createWhitePagePdfBlob({
+        title: docTitle,
+        text: textToShare,
+        imageThumbnail: imageSrc,
+        includeDate: true,
+        includeHeader: true,
+      });
+
+      const shareRes = await sharePdfDirectly({
+        blob,
+        title: docTitle,
+        text: textToShare,
+        attemptNativeShare: false,
+      });
+
+      await copyPdfToClipboard(blob, docTitle, shareRes.shareUrl || shareRes.downloadUrl);
+      setCopiedPdfDirect(true);
+      setTimeout(() => setCopiedPdfDirect(false), 3000);
+    } catch (err) {
+      console.error('Failed to copy PDF file:', err);
+    } finally {
+      setIsDirectCopyingPdf(false);
+    }
   };
 
   const getFilterStyle = () => {
@@ -554,14 +639,50 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
 
             <div className="flex flex-wrap items-center gap-2">
               
+              {/* Direct Share PDF Button (Without Downloading) */}
+              <button
+                onClick={handleDirectSharePdf}
+                disabled={isDirectSharingPdf}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-sm shadow-emerald-600/30 transition-all cursor-pointer active:scale-98 disabled:opacity-50"
+                title="وضع النص في ملف PDF ومشاركته فوراً بدون تحميل مسبق"
+              >
+                {isDirectSharingPdf ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Share2 className="w-3.5 h-3.5" />
+                )}
+                <span>{isDirectSharingPdf ? 'جاري تجهيز PDF...' : 'مشاركة PDF مباشرة'}</span>
+              </button>
+
+              {/* Copy PDF File Directly Button */}
+              <button
+                onClick={handleDirectCopyPdf}
+                disabled={isDirectCopyingPdf}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  copiedPdfDirect
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-emerald-50 dark:bg-emerald-950/70 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs'
+                }`}
+                title="نسخ ملف الـ PDF ورابطه المباشر إلى الحافظة للصقه فوراً في أي مكان (Ctrl+V)"
+              >
+                {isDirectCopyingPdf ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : copiedPdfDirect ? (
+                  <Check className="w-3.5 h-3.5 text-white" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                )}
+                <span>{isDirectCopyingPdf ? 'جاري تجهيز الملف...' : copiedPdfDirect ? 'تم نسخ ملف الـ PDF!' : 'نسخ ملف الـ PDF'}</span>
+              </button>
+
               {/* Export to Clean White Page PDF (Optional) */}
               <button
                 onClick={() => setIsWhitePdfModalOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-900/60 shadow-2xs transition-colors cursor-pointer"
-                title="تصدير النص في صفحة بيضاء بتنسيق PDF مع خيارات التخصيص"
+                title="تخصيص شكل الصفحة البيضاء وتصديرها كـ PDF"
               >
                 <FileDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                <span>صفحة بيضاء PDF (اختياري)</span>
+                <span>تخصيص صفحة PDF</span>
               </button>
 
               {/* Download TXT */}
@@ -616,6 +737,20 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
         imageThumbnail={imageSrc}
       />
 
+      {/* Standalone Direct Share PDF Modal */}
+      {directShareData && (
+        <SharePdfModal
+          isOpen={true}
+          onClose={() => setDirectShareData(null)}
+          pdfBlob={directShareData.blob}
+          fileName={directShareData.fileName}
+          shareUrl={directShareData.shareUrl}
+          downloadUrl={directShareData.downloadUrl}
+          title={directShareData.title}
+        />
+      )}
+
     </div>
   );
 };
+

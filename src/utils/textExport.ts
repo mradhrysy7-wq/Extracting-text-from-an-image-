@@ -1,4 +1,6 @@
-// Helper functions for copying, downloading, and printing text
+// Helper functions for copying, downloading, printing, and direct PDF generation/sharing
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export function copyToClipboard(text: string): Promise<boolean> {
   if (navigator.clipboard && window.isSecureContext) {
@@ -291,6 +293,264 @@ export function printDocument(text: string, title = 'المستند المستخ
     includeHeader: true,
   });
 }
+
+/**
+ * Generates an authentic binary PDF Blob (application/pdf) from a rendered DOM element
+ * using high-resolution html2canvas and jsPDF for perfect Arabic typography.
+ */
+export async function generatePdfBlobFromElement(element: HTMLElement): Promise<Blob> {
+  const canvas = await html2canvas(element, {
+    scale: 2, // 2x DPI for ultra-sharp Arabic letters and diacritics
+    useCORS: true,
+    logging: false,
+    backgroundColor: '#ffffff',
+  });
+
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const imgData = canvas.toDataURL('image/jpeg', 0.95);
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const imgWidth = pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  let heightLeft = imgHeight;
+  let position = 0;
+
+  pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+  heightLeft -= pageHeight;
+
+  while (heightLeft > 0) {
+    position = heightLeft - imgHeight;
+    pdf.addPage();
+    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+  }
+
+  return pdf.output('blob');
+}
+
+/**
+ * Creates a complete A4 PDF Blob on-the-fly from WhitePagePdfOptions without needing an open modal.
+ */
+export async function createWhitePagePdfBlob(options: WhitePagePdfOptions): Promise<Blob> {
+  const {
+    title = 'المستند المستخرج',
+    text,
+    fontSize = 'medium',
+    lineHeight = 'normal',
+    alignment = 'right',
+    includeDate = true,
+    includeHeader = true,
+    imageThumbnail = null,
+  } = options;
+
+  const fontSizes = {
+    small: '14px',
+    medium: '16px',
+    large: '19px',
+  };
+
+  const lineHeights = {
+    compact: '1.6',
+    normal: '1.9',
+    relaxed: '2.3',
+  };
+
+  // Create temporary container styled identically to an A4 document
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.top = '-99999px';
+  container.style.left = '-99999px';
+  container.style.width = '794px'; // 210mm @ 96dpi
+  container.style.backgroundColor = '#ffffff';
+  container.style.color = '#111827';
+  container.style.padding = '40px 50px';
+  container.style.direction = 'rtl';
+  container.style.fontFamily = "'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif";
+  container.style.boxSizing = 'border-box';
+
+  let headerHtml = '';
+  if (includeHeader) {
+    headerHtml = `
+      <div style="border-bottom: 2px solid #0f766e; padding-bottom: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          ${title ? `<h1 style="font-size: 24px; font-weight: 800; color: #0f766e; margin: 0 0 6px 0;">${escapeHtml(title)}</h1>` : ''}
+          ${includeDate ? `<div style="font-size: 13px; color: #64748b;">تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-SA')}</div>` : ''}
+        </div>
+        <div style="font-size: 14px; font-weight: bold; color: #0f766e;">بصيرة OCR</div>
+      </div>
+    `;
+  }
+
+  let thumbnailHtml = '';
+  if (imageThumbnail) {
+    thumbnailHtml = `
+      <div style="margin-bottom: 20px; text-align: center;">
+        <img src="${imageThumbnail}" alt="Thumbnail" style="max-height: 160px; max-width: 100%; border: 1px solid #e2e8f0; border-radius: 6px;" />
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    ${headerHtml}
+    ${thumbnailHtml}
+    <div style="font-size: ${fontSizes[fontSize]}; line-height: ${lineHeights[lineHeight]}; text-align: ${alignment}; white-space: pre-wrap; word-break: break-word; color: #1e293b; min-height: 400px;">
+      ${escapeHtml(text)}
+    </div>
+    <div style="margin-top: 40px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8;">
+      <span>مستند نصي رقمي مستخرج بالذكاء الاصطناعي</span>
+      <span>صفحة 1 من 1</span>
+    </div>
+  `;
+
+  document.body.appendChild(container);
+
+  try {
+    const blob = await generatePdfBlobFromElement(container);
+    return blob;
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
+/**
+ * Converts a Blob to a Base64 string for transmission
+ */
+export function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+export interface SharePdfResult {
+  sharedViaNative: boolean;
+  shareUrl?: string;
+  downloadUrl?: string;
+  blob: Blob;
+  fileName: string;
+}
+
+/**
+ * Uploads PDF to server cache for instant sharing link & optionally triggers Native Web Share
+ */
+export async function sharePdfDirectly(options: {
+  blob: Blob;
+  title: string;
+  text?: string;
+  attemptNativeShare?: boolean;
+}): Promise<SharePdfResult> {
+  const { blob, title, text = '', attemptNativeShare = true } = options;
+  const safeTitle = (title.trim() || 'مستند_مستخرج').replace(/[\/\\?%*:|"<>]/g, '_');
+  const fileName = `${safeTitle}.pdf`;
+
+  const pdfFile = new File([blob], fileName, { type: 'application/pdf' });
+  let sharedViaNative = false;
+
+  // 1. If requested & supported, trigger OS Native Share Sheet (WhatsApp, Telegram, Mail, AirDrop, etc.)
+  if (attemptNativeShare && typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+    try {
+      await navigator.share({
+        files: [pdfFile],
+        title: title || 'مستند PDF مستخرج',
+        text: `مستند مستخرج عبر تطبيق بصيرة OCR: ${title}`,
+      });
+      sharedViaNative = true;
+    } catch (e: any) {
+      // User cancelled share dialog or dismissed - not a fatal error
+      if (e?.name !== 'AbortError') {
+        console.warn('Native share error:', e);
+      }
+    }
+  }
+
+  // 2. Upload to server cache to get an instant public view & download link
+  let shareUrl: string | undefined;
+  let downloadUrl: string | undefined;
+
+  try {
+    const base64 = await blobToBase64(blob);
+    const res = await fetch('/api/share-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        pdfBase64: base64,
+        text,
+      }),
+    });
+    const json = await res.json();
+    if (json.success) {
+      shareUrl = json.viewUrl;
+      downloadUrl = json.downloadUrl;
+    }
+  } catch (err) {
+    console.warn('Could not upload PDF to share cache:', err);
+  }
+
+    return {
+      sharedViaNative,
+      shareUrl,
+      downloadUrl,
+      blob,
+      fileName,
+    };
+  }
+
+  /**
+   * Copies the PDF file or rich shareable document link to clipboard
+   */
+  export async function copyPdfToClipboard(
+    blob: Blob,
+    title = 'المستند المستخرج',
+    shareUrl?: string
+  ): Promise<{ success: boolean; mode: 'file' | 'link' }> {
+    const safeTitle = (title.trim() || 'مستند_مستخرج').replace(/[\/\\?%*:|"<>]/g, '_');
+    const fileName = `${safeTitle}.pdf`;
+
+    // 1. Try copying binary PDF blob using modern ClipboardItem
+    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+      try {
+        const item = new ClipboardItem({
+          'application/pdf': blob,
+        });
+        await navigator.clipboard.write([item]);
+        return { success: true, mode: 'file' };
+      } catch {
+        // Application/pdf in clipboard.write may be restricted by some browser security policies
+      }
+    }
+
+    // 2. Rich fallback: Copy clean document link and title formatted for pasting anywhere
+    const targetUrl = shareUrl || (typeof window !== 'undefined' ? window.location.href : '');
+    const plainText = `${title}\nرابط ملف الـ PDF المباشر:\n${targetUrl}`;
+
+    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+      try {
+        const htmlText = `<p><strong>${escapeHtml(title)}</strong></p><p><a href="${targetUrl}">رابط مستند الـ PDF</a></p>`;
+        const item = new ClipboardItem({
+          'text/plain': new Blob([plainText], { type: 'text/plain' }),
+          'text/html': new Blob([htmlText], { type: 'text/html' }),
+        });
+        await navigator.clipboard.write([item]);
+        return { success: true, mode: 'link' };
+      } catch {
+        // Fall back to standard copy
+      }
+    }
+
+    const ok = await copyToClipboard(plainText);
+    return { success: ok, mode: 'link' };
+  }
+
 
 // Speech synthesis helper
 export class TextSpeechPlayer {
