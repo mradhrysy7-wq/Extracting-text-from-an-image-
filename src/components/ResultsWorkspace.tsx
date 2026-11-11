@@ -21,7 +21,13 @@ import {
   FileDown,
   Zap,
   Share2,
-  Loader2
+  Loader2,
+  FileEdit,
+  ArrowLeftRight,
+  Type,
+  CheckCheck,
+  Sliders,
+  AlertCircle
 } from 'lucide-react';
 import { OcrResultData, OcrMode } from '../types/ocr';
 import {
@@ -46,6 +52,7 @@ interface ResultsWorkspaceProps {
   mode: OcrMode;
   onReExtract: () => void;
   onNewImage: () => void;
+  onOpenImageToPdf?: () => void;
 }
 
 export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
@@ -56,6 +63,7 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
   mode,
   onReExtract,
   onNewImage,
+  onOpenImageToPdf,
 }) => {
   const [activeTab, setActiveTab] = useState<'text' | 'structured' | 'translation' | 'summary'>('text');
   const [editableText, setEditableText] = useState(result.extractedText || '');
@@ -122,10 +130,71 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
     }
   };
 
+  const [charSwapToast, setCharSwapToast] = useState<string | null>(null);
+
+  const isTextDoc = imageSrc === 'text_document';
+
+  const showCharToast = (msg: string) => {
+    setCharSwapToast(msg);
+    setTimeout(() => setCharSwapToast(null), 3000);
+  };
+
+  const handleQuickCharSwap = (findChar: string, replaceWithChar: string) => {
+    if (!editableText) return;
+    const count = (editableText.match(new RegExp(findChar, 'g')) || []).length;
+    if (count === 0) {
+      showCharToast(`لم يتم العثور على حرف (${findChar}) في النص`);
+      return;
+    }
+    const updated = editableText.replaceAll(findChar, replaceWithChar);
+    setEditableText(updated);
+    showCharToast(`تم استبدال (${count}) من حرف [${findChar}] إلى [${replaceWithChar}]`);
+  };
+
+  const handleUnifyHamzas = () => {
+    if (!editableText) return;
+    const count = (editableText.match(/[أإآ]/g) || []).length;
+    if (count === 0) {
+      showCharToast('لا توجد همزات (أ، إ، آ) في النص');
+      return;
+    }
+    const updated = editableText.replace(/[أإآ]/g, 'ا');
+    setEditableText(updated);
+    showCharToast(`تم توحيد (${count}) همزة إلى ألف عادية (ا)`);
+  };
+
+  const handleRemoveDiacritics = () => {
+    if (!editableText) return;
+    const count = (editableText.match(/[\u064B-\u065F\u0670]/g) || []).length;
+    if (count === 0) {
+      showCharToast('النص خالي من علامات التشكيل والحركات');
+      return;
+    }
+    const updated = editableText.replace(/[\u064B-\u065F\u0670]/g, '');
+    setEditableText(updated);
+    showCharToast(`تمت إزالة (${count}) حركة تشكيل بنجاح`);
+  };
+
+  const handleCleanSpaces = () => {
+    if (!editableText) return;
+    const updated = editableText
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n\s*\n\s*\n/g, '\n\n')
+      .trim();
+    setEditableText(updated);
+    showCharToast('تم ضبط وتنسيق المسافات والأسطر الزائدة');
+  };
+
   const handleSearchReplace = () => {
     if (!searchQuery) return;
+    const count = (editableText.match(new RegExp(searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+    if (count === 0) {
+      showCharToast(`لم يتم العثور على أي تطابق لـ "${searchQuery}"`);
+      return;
+    }
     const updated = editableText.replaceAll(searchQuery, replaceQuery);
     setEditableText(updated);
+    showCharToast(`تم استبدال (${count}) تطابق لـ "${searchQuery}" إلى "${replaceQuery}"`);
   };
 
   // Perform on-demand AI enhancement (diacritics, grammar, summarize, translate)
@@ -263,12 +332,19 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
         
         {/* Left: Metrics & Status */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 font-bold text-xs border border-emerald-300 dark:border-emerald-800">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>الدقة المقدرة: {confidence}%</span>
-          </div>
+          {isTextDoc ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 font-bold text-xs border border-purple-300 dark:border-purple-800">
+              <FileEdit className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span>مستند نصي رقمي (100% دقة)</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 font-bold text-xs border border-emerald-300 dark:border-emerald-800">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>الدقة المقدرة: {confidence}%</span>
+            </div>
+          )}
 
-          {result.durationSeconds !== undefined && (
+          {!isTextDoc && result.durationSeconds !== undefined && (
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold text-xs border border-amber-200 dark:border-amber-900/60 shadow-2xs">
               <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
               <span>استُخرج في {result.durationSeconds} ثوانٍ</span>
@@ -308,18 +384,22 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
           <button
             onClick={() => setViewLayout((prev) => (prev === 'split' ? 'textOnly' : 'split'))}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-            title={viewLayout === 'split' ? 'عرض النص فقط' : 'عرض الصورة والنص معاً'}
+            title={viewLayout === 'split' ? (isTextDoc ? 'إخفاء الإحصائيات' : 'عرض النص فقط') : (isTextDoc ? 'عرض تحليل الحروف' : 'عرض الصورة والنص معاً')}
           >
             <Columns className="w-3.5 h-3.5" />
-            <span>{viewLayout === 'split' ? 'إخفاء الصورة' : 'مقارنة مع الصورة'}</span>
+            <span>{viewLayout === 'split' ? (isTextDoc ? 'إخفاء التحليل' : 'إخفاء الصورة') : (isTextDoc ? 'تحليل الحروف' : 'مقارنة مع الصورة')}</span>
           </button>
 
           <button
             onClick={onNewImage}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg transition-colors cursor-pointer"
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+              isTextDoc
+                ? 'text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800'
+                : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+            }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>صورة جديدة</span>
+            {isTextDoc ? <FileEdit className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+            <span>{isTextDoc ? 'مستند جديد' : 'صورة جديدة'}</span>
           </button>
         </div>
 
@@ -328,26 +408,189 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
       {/* Main Dual Workspace */}
       <div className={`grid gap-4 ${viewLayout === 'split' ? 'lg:grid-cols-12' : 'grid-cols-1'}`}>
         
-        {/* Left Column (Image Comparison) */}
+        {/* Left Column (Document Character Diagnostics OR Image Comparison) */}
         {viewLayout === 'split' && (
-          <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex flex-col">
-            <div className="flex items-center justify-between mb-3 text-xs font-bold text-slate-700 dark:text-slate-300">
-              <span>الصورة الأصلية المرفوعة</span>
-              <span className="text-[11px] text-slate-400">للمقارنة والتحقق</span>
-            </div>
+          isTextDoc ? (
+            <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex flex-col space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+                    <Sliders className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">تحليل الحروف وتعديلها</h4>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">إحصاءات الحروف وتبديلها فورياً</span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                  محرر المستند
+                </span>
+              </div>
 
-            <div className="relative flex-1 min-h-[350px] max-h-[550px] rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center p-2 border border-slate-200 dark:border-slate-800">
-              <img
-                src={imageSrc}
-                alt="Source OCR"
-                style={{
-                  transform: `rotate(${rotation}deg)`,
-                  filter: getFilterStyle(),
-                }}
-                className="max-h-[500px] w-auto max-w-full object-contain transition-all"
-              />
+              {/* Toast alert if triggered */}
+              {charSwapToast && (
+                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>{charSwapToast}</span>
+                </div>
+              )}
+
+              {/* Letter Diagnostics Grid */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">إجمالي الحروف</span>
+                  <span className="font-mono font-bold text-base text-slate-800 dark:text-white">{charCount}</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">حروف بدون مسافات</span>
+                  <span className="font-mono font-bold text-base text-slate-800 dark:text-white">{editableText.replace(/\s/g, '').length}</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">عدد الكلمات</span>
+                  <span className="font-mono font-bold text-base text-slate-800 dark:text-white">{wordCount}</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">عدد الأسطر</span>
+                  <span className="font-mono font-bold text-base text-slate-800 dark:text-white">{lineCount}</span>
+                </div>
+              </div>
+
+              {/* Arabic Character Quick Modification Buttons */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <Type className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                  تبديل وتعديل الحروف الشائعة بنقرة واحدة:
+                </span>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCharSwap('ى', 'ي')}
+                    className="p-2.5 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800/80 text-right flex items-center justify-between cursor-pointer transition-colors"
+                  >
+                    <div>
+                      <span className="font-bold text-purple-900 dark:text-purple-200 block text-xs">تبديل ى ➔ ي</span>
+                      <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono">
+                        {(editableText.match(/ى/g) || []).length} حرف (ى)
+                      </span>
+                    </div>
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-purple-500" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCharSwap('ي', 'ى')}
+                    className="p-2.5 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800/80 text-right flex items-center justify-between cursor-pointer transition-colors"
+                  >
+                    <div>
+                      <span className="font-bold text-purple-900 dark:text-purple-200 block text-xs">تبديل ي ➔ ى</span>
+                      <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono">
+                        {(editableText.match(/ي/g) || []).length} حرف (ي)
+                      </span>
+                    </div>
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-purple-500" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCharSwap('ه', 'ة')}
+                    className="p-2.5 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800/80 text-right flex items-center justify-between cursor-pointer transition-colors"
+                  >
+                    <div>
+                      <span className="font-bold text-purple-900 dark:text-purple-200 block text-xs">تبديل ه ➔ ة</span>
+                      <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono">
+                        {(editableText.match(/ه/g) || []).length} حرف (ه)
+                      </span>
+                    </div>
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-purple-500" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCharSwap('ة', 'ه')}
+                    className="p-2.5 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800/80 text-right flex items-center justify-between cursor-pointer transition-colors"
+                  >
+                    <div>
+                      <span className="font-bold text-purple-900 dark:text-purple-200 block text-xs">تبديل ة ➔ ه</span>
+                      <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono">
+                        {(editableText.match(/ة/g) || []).length} حرف (ة)
+                      </span>
+                    </div>
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-purple-500" />
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleUnifyHamzas}
+                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs text-right flex items-center justify-between cursor-pointer font-medium text-slate-700 dark:text-slate-300 transition-colors"
+                  >
+                    <span>توحيد الهمزات (أ، إ، آ ➔ ا)</span>
+                    <span className="font-mono text-[10px] text-slate-500">
+                      {(editableText.match(/[أإآ]/g) || []).length} همزة
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRemoveDiacritics}
+                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs text-right flex items-center justify-between cursor-pointer font-medium text-slate-700 dark:text-slate-300 transition-colors"
+                  >
+                    <span>حذف علامات التشكيل والحركات</span>
+                    <span className="font-mono text-[10px] text-slate-500">
+                      {(editableText.match(/[\u064B-\u065F\u0670]/g) || []).length} حركة
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCleanSpaces}
+                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs text-right flex items-center justify-between cursor-pointer font-medium text-slate-700 dark:text-slate-300 transition-colors"
+                  >
+                    <span>ضبط وتنسيق المسافات والأسطر الزائدة</span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400">تنسيق فوري</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Tip info box */}
+              <div className="mt-auto p-3 rounded-xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/50 dark:border-purple-800/30 text-[11px] text-purple-950 dark:text-purple-300 leading-relaxed">
+                💡 يمكنك تعديل أي حرف أو كلمة مباشرة داخل محرر النصوص في الجهة اليسرى، أو استخدام ميزة البحث والاستبدال لتغيير كلمات كاملة.
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex flex-col">
+              <div className="flex items-center justify-between mb-3 text-xs font-bold text-slate-700 dark:text-slate-300">
+                <div className="flex items-center gap-1.5">
+                  <span>الصورة الأصلية المرفوعة</span>
+                  <span className="text-[10px] text-slate-400 font-normal">للمقارنة</span>
+                </div>
+                {onOpenImageToPdf && (
+                  <button
+                    onClick={onOpenImageToPdf}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[11px] font-bold transition-colors cursor-pointer"
+                    title="تحويل الصورة الأصلية مباشرة إلى ملف PDF"
+                  >
+                    <FileDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                    <span>تحويل لـ PDF</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="relative flex-1 min-h-[350px] max-h-[550px] rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center p-2 border border-slate-200 dark:border-slate-800">
+                <img
+                  src={imageSrc}
+                  alt="Source OCR"
+                  style={{
+                    transform: `rotate(${rotation}deg)`,
+                    filter: getFilterStyle(),
+                  }}
+                  className="max-h-[500px] w-auto max-w-full object-contain transition-all"
+                />
+              </div>
+            </div>
+          )
         )}
 
         {/* Right Column (Interactive Results & Editor) */}
@@ -463,29 +706,128 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
 
           </div>
 
-          {/* Search & Replace Inline Bar */}
+          {/* Search & Replace & Character Swapping Inline Bar */}
           {showSearch && (
-            <div className="p-3 bg-slate-100/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2 text-xs">
-              <input
-                type="text"
-                placeholder="ابحث عن كلمة أو عبارة..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1 text-slate-800 dark:text-slate-200 flex-1 min-w-[140px]"
-              />
-              <input
-                type="text"
-                placeholder="استبدال بـ..."
-                value={replaceQuery}
-                onChange={(e) => setReplaceQuery(e.target.value)}
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1 text-slate-800 dark:text-slate-200 flex-1 min-w-[140px]"
-              />
-              <button
-                onClick={handleSearchReplace}
-                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg"
-              >
-                استبدال الكل
-              </button>
+            <div className="p-3 bg-slate-100/90 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-700 space-y-2.5 text-xs animate-in fade-in">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative flex-1 min-w-[150px]">
+                  <input
+                    type="text"
+                    placeholder="ابحث عن كلمة أو حرف..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-200 pl-16 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                  />
+                  {searchQuery && (
+                    <span
+                      className={`absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                        (editableText.match(new RegExp(searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length > 0
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                      }`}
+                    >
+                      {(editableText.match(new RegExp(searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length} تطابق
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-[150px]">
+                  <input
+                    type="text"
+                    placeholder="استبدال بـ (كلمة أو حرف)..."
+                    value={replaceQuery}
+                    onChange={(e) => setReplaceQuery(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSearchReplace}
+                  disabled={!searchQuery}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  استبدال الكل
+                </button>
+              </div>
+
+              {/* Quick Character Replacer Buttons Strip */}
+              <div className="pt-1 border-t border-slate-200/60 dark:border-slate-700/60 flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  استبدال سريع للحروف:
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickCharSwap('ى', 'ي')}
+                  className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 font-medium text-[11px] transition-colors cursor-pointer"
+                  title="استبدال حرف ى بـ ي"
+                >
+                  ى ➔ ي
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickCharSwap('ي', 'ى')}
+                  className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 font-medium text-[11px] transition-colors cursor-pointer"
+                  title="استبدال حرف ي بـ ى"
+                >
+                  ي ➔ ى
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickCharSwap('ه', 'ة')}
+                  className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 font-medium text-[11px] transition-colors cursor-pointer"
+                  title="استبدال حرف ه بـ ة"
+                >
+                  ه ➔ ة
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickCharSwap('ة', 'ه')}
+                  className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 font-medium text-[11px] transition-colors cursor-pointer"
+                  title="استبدال حرف ة بـ ه"
+                >
+                  ة ➔ ه
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleUnifyHamzas}
+                  className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 font-medium text-[11px] transition-colors cursor-pointer"
+                  title="توحيد الهمزات أ، إ، آ إلى ألف عادية"
+                >
+                  أ/إ ➔ ا
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRemoveDiacritics}
+                  className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 font-medium text-[11px] transition-colors cursor-pointer"
+                  title="حذف جميع علامات التشكيل والحركات"
+                >
+                  حذف التشكيل
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCleanSpaces}
+                  className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-300 font-medium text-[11px] transition-colors cursor-pointer"
+                  title="تنظيف وضبط المسافات والأسطر"
+                >
+                  ضبط المسافات
+                </button>
+              </div>
+
+              {/* Feedback toast in search bar */}
+              {charSwapToast && (
+                <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in">
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>{charSwapToast}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -684,6 +1026,18 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
                 <FileDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                 <span>تخصيص صفحة PDF</span>
               </button>
+
+              {/* Convert Original Image to PDF */}
+              {!isTextDoc && onOpenImageToPdf && (
+                <button
+                  onClick={onOpenImageToPdf}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+                  title="تحويل الصورة الأصلية مباشرة إلى ملف PDF مع خيارات التنسيق والمشاركة"
+                >
+                  <FileDown className="w-3.5 h-3.5" />
+                  <span>تحويل الصورة لـ PDF</span>
+                </button>
+              )}
 
               {/* Download TXT */}
               <button

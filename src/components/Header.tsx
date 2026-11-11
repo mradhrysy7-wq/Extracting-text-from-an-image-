@@ -7,7 +7,9 @@ import {
   Sun, 
   Sparkles,
   Camera,
-  RotateCcw
+  RotateCcw,
+  FileEdit,
+  FileDown
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -17,6 +19,8 @@ interface HeaderProps {
   historyCount: number;
   onOpenHelp: () => void;
   onReset: () => void;
+  onOpenNewTextDocument: () => void;
+  onOpenImageToPdf?: () => void;
   hasActiveImage: boolean;
 }
 
@@ -27,6 +31,8 @@ export const Header: React.FC<HeaderProps> = ({
   historyCount,
   onOpenHelp,
   onReset,
+  onOpenNewTextDocument,
+  onOpenImageToPdf,
   hasActiveImage,
 }) => {
   return (
@@ -48,13 +54,33 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
-              استخراج وقراءة النصوص من الصور بدقة الذكاء الاصطناعي
+              استخراج وقراءة النصوص من الصور ومحرر المستندات وتعديل الحروف
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {/* New Text Document / Paste Button */}
+          <button
+            onClick={onOpenNewTextDocument}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800 rounded-lg transition-colors cursor-pointer shadow-2xs"
+            title="إنشاء مستند نصي جديد من أي نص منسوخ وتعديل حروفه"
+          >
+            <FileEdit className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+            <span>مستند جديد / لصق نص</span>
+          </button>
+          {hasActiveImage && onOpenImageToPdf && (
+            <button
+              onClick={onOpenImageToPdf}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800 rounded-lg transition-colors cursor-pointer shadow-2xs"
+              title="تحويل الصورة الحالية إلى ملف PDF"
+            >
+              <FileDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+              <span className="hidden sm:inline">تحويل لـ PDF</span>
+            </button>
+          )}
+
           {hasActiveImage && (
             <button
               onClick={onReset}

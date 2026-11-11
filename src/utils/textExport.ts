@@ -30,6 +30,10 @@ function fallbackCopy(text: string): boolean {
 
 export function downloadTextFile(text: string, filename: string, mimeType = 'text/plain;charset=utf-8') {
   const blob = new Blob([text], { type: mimeType });
+  downloadBlob(blob, filename);
+}
+
+export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -229,7 +233,7 @@ export function exportWhitePagePdf(options: WhitePagePdfOptions) {
         }
 
         ${
-          imageThumbnail
+          imageThumbnail && imageThumbnail !== 'text_document'
             ? `
           <div class="thumbnail-container">
             <img src="${imageThumbnail}" alt="المستند الأصلي" class="thumbnail-img" />
@@ -389,7 +393,7 @@ export async function createWhitePagePdfBlob(options: WhitePagePdfOptions): Prom
   }
 
   let thumbnailHtml = '';
-  if (imageThumbnail) {
+  if (imageThumbnail && imageThumbnail !== 'text_document') {
     thumbnailHtml = `
       <div style="margin-bottom: 20px; text-align: center;">
         <img src="${imageThumbnail}" alt="Thumbnail" style="max-height: 160px; max-width: 100%; border: 1px solid #e2e8f0; border-radius: 6px;" />
@@ -417,6 +421,122 @@ export async function createWhitePagePdfBlob(options: WhitePagePdfOptions): Prom
   } finally {
     document.body.removeChild(container);
   }
+}
+
+export interface ImageToPdfOptions {
+  imageSrc: string;
+  rotation?: number;
+  contrastFilter?: 'normal' | 'high_contrast' | 'grayscale' | 'invert';
+  pageSize?: 'a4' | 'fit_image' | 'letter';
+  orientation?: 'auto' | 'portrait' | 'landscape';
+  margin?: 'none' | 'small' | 'normal';
+  quality?: 'high' | 'standard' | 'compressed';
+  docTitle?: string;
+}
+
+/**
+ * Converts any image into a high-quality PDF blob with rotation, contrast filters, and page format options.
+ */
+export async function convertImageToPdfBlob(options: ImageToPdfOptions): Promise<Blob> {
+  const {
+    imageSrc,
+    rotation = 0,
+    contrastFilter = 'normal',
+    pageSize = 'a4',
+    orientation = 'auto',
+    margin = 'small',
+    quality = 'high',
+  } = options;
+
+  // 1. Load image and bake rotation & filters onto a temporary canvas
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image();
+    i.crossOrigin = 'anonymous';
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error('فشل تحميل الصورة للتحويل إلى PDF'));
+    i.src = imageSrc;
+  });
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not create canvas context');
+
+  const normalizedRotation = ((rotation % 360) + 360) % 360;
+  const isOrthogonal = normalizedRotation === 90 || normalizedRotation === 270;
+
+  canvas.width = isOrthogonal ? img.naturalHeight : img.naturalWidth;
+  canvas.height = isOrthogonal ? img.naturalWidth : img.naturalHeight;
+
+  // Filter application
+  let filterStr = 'none';
+  if (contrastFilter === 'high_contrast') {
+    filterStr = 'contrast(160%) brightness(105%)';
+  } else if (contrastFilter === 'grayscale') {
+    filterStr = 'grayscale(100%) contrast(120%)';
+  } else if (contrastFilter === 'invert') {
+    filterStr = 'invert(100%)';
+  }
+  ctx.filter = filterStr;
+
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((normalizedRotation * Math.PI) / 180);
+  ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+
+  const qualityMap = {
+    high: 0.95,
+    standard: 0.85,
+    compressed: 0.65,
+  };
+  const imgData = canvas.toDataURL('image/jpeg', qualityMap[quality] || 0.95);
+
+  // 2. Setup jsPDF page
+  const imgAspect = canvas.width / canvas.height;
+  let finalOrientation: 'portrait' | 'landscape' = 'portrait';
+  if (orientation === 'auto') {
+    finalOrientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+  } else {
+    finalOrientation = orientation;
+  }
+
+  let pdf: jsPDF;
+
+  if (pageSize === 'fit_image') {
+    // Custom page size matching exact image aspect ratio (0 white bars)
+    const baseWidth = finalOrientation === 'landscape' ? 297 : 210;
+    const computedHeight = baseWidth / imgAspect;
+    pdf = new jsPDF({
+      orientation: finalOrientation,
+      unit: 'mm',
+      format: [baseWidth, computedHeight],
+    });
+    pdf.addImage(imgData, 'JPEG', 0, 0, baseWidth, computedHeight);
+  } else {
+    // Standard A4 or Letter
+    const standardFormat = pageSize === 'letter' ? 'letter' : 'a4';
+    pdf = new jsPDF({
+      orientation: finalOrientation,
+      unit: 'mm',
+      format: standardFormat,
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    const marginMm = margin === 'none' ? 0 : margin === 'small' ? 6 : 15;
+    const availW = pageWidth - marginMm * 2;
+    const availH = pageHeight - marginMm * 2;
+
+    const scale = Math.min(availW / canvas.width, availH / canvas.height);
+    const renderW = canvas.width * scale;
+    const renderH = canvas.height * scale;
+
+    const posX = marginMm + (availW - renderW) / 2;
+    const posY = marginMm + (availH - renderH) / 2;
+
+    pdf.addImage(imgData, 'JPEG', posX, posY, renderW, renderH);
+  }
+
+  return pdf.output('blob');
 }
 
 /**

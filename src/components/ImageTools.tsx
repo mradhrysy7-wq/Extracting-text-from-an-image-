@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCw, RotateCcw, Sliders, Eye, RefreshCw, ZoomIn } from 'lucide-react';
+import { RotateCw, RotateCcw, Sliders, Eye, RefreshCw, ZoomIn, FileDown } from 'lucide-react';
 
 interface ImageToolsProps {
   rotation: number;
@@ -9,6 +9,7 @@ interface ImageToolsProps {
   onChangeFilter: (filter: 'normal' | 'high_contrast' | 'grayscale' | 'invert') => void;
   onResetAdjustments: () => void;
   onTriggerZoom: () => void;
+  onConvertToPdf: () => void;
   imageFileName?: string;
   imageDimensions?: { width: number; height: number };
 }
@@ -21,6 +22,7 @@ export const ImageTools: React.FC<ImageToolsProps> = ({
   onChangeFilter,
   onResetAdjustments,
   onTriggerZoom,
+  onConvertToPdf,
   imageFileName,
   imageDimensions,
 }) => {
@@ -101,17 +103,27 @@ export const ImageTools: React.FC<ImageToolsProps> = ({
         {/* Zoom inspection */}
         <button
           onClick={onTriggerZoom}
-          className="p-1.5 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+          className="p-1.5 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
           title="تكبير ومعاينة الصورة كاملة"
         >
           <ZoomIn className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Convert Image to PDF Button */}
+        <button
+          onClick={onConvertToPdf}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+          title="تحويل هذه الصورة مباشرة إلى ملف PDF عالي الدقة بدون انتظار"
+        >
+          <FileDown className="w-3.5 h-3.5" />
+          <span>تحويل الصورة إلى PDF</span>
         </button>
 
         {/* Reset */}
         {(rotation !== 0 || contrastFilter !== 'normal') && (
           <button
             onClick={onResetAdjustments}
-            className="text-[11px] text-rose-500 hover:text-rose-600 underline font-medium px-1"
+            className="text-[11px] text-rose-500 hover:text-rose-600 underline font-medium px-1 cursor-pointer"
           >
             إعادة ضبط
           </button>

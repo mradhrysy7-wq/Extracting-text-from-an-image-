@@ -1,20 +1,25 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { UploadCloud, Camera, Clipboard, Image as ImageIcon, Sparkles, CheckCircle2 } from 'lucide-react';
+import { UploadCloud, Camera, Clipboard, Image as ImageIcon, Sparkles, CheckCircle2, FileEdit, ArrowLeft, FileDown } from 'lucide-react';
 import { SAMPLE_IMAGES, SampleImage } from '../data/sampleImages';
 import { OcrMode } from '../types/ocr';
 
 interface ImageUploaderProps {
   onImageSelected: (dataUrl: string, fileName?: string, recommendedMode?: OcrMode) => void;
   onOpenCamera: () => void;
+  onOpenNewTextDocument: () => void;
+  onSelectImageForPdf?: (dataUrl: string, fileName?: string) => void;
 }
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
   onImageSelected,
   onOpenCamera,
+  onOpenNewTextDocument,
+  onSelectImageForPdf,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [pasteError, setPasteError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfFileInputRef = useRef<HTMLInputElement>(null);
 
   // Global paste handler (Ctrl+V / Command+V anywhere on page)
   useEffect(() => {
@@ -46,6 +51,25 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       const dataUrl = e.target?.result as string;
       if (dataUrl) {
         onImageSelected(dataUrl, customName || file.name);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePdfFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('يرجى اختيار ملف صورة صالح (PNG, JPG, WEBP, HEIC...)');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (dataUrl) {
+        if (onSelectImageForPdf) {
+          onSelectImageForPdf(dataUrl, file.name);
+        } else {
+          onImageSelected(dataUrl, file.name);
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -119,6 +143,18 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           }}
         />
 
+        <input
+          ref={pdfFileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files && e.target.files[0]) {
+              handlePdfFile(e.target.files[0]);
+            }
+          }}
+        />
+
         {/* Center Content */}
         <div className="max-w-md mx-auto space-y-4">
           
@@ -161,7 +197,26 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
               className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Clipboard className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-              <span>لصق من الحافظة (Ctrl+V)</span>
+              <span>لصق صورة (Ctrl+V)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => pdfFileInputRef.current?.click()}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold shadow-md shadow-rose-600/25 transition-all flex items-center gap-1.5 cursor-pointer"
+              title="اختيار صورة وتحويلها إلى مستند PDF فورياً"
+            >
+              <FileDown className="w-4 h-4" />
+              <span>تحويل صورة إلى PDF</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenNewTextDocument}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-600/25 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <FileEdit className="w-4 h-4" />
+              <span>لصق نص / إنشاء مستند</span>
             </button>
           </div>
 
@@ -172,6 +227,71 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           )}
 
         </div>
+      </div>
+
+      {/* Two Feature Callout Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        {/* Direct Image to PDF Callout Banner */}
+        <div 
+          onClick={() => pdfFileInputRef.current?.click()}
+          className="group relative p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-rose-900/10 via-amber-900/10 to-rose-900/10 dark:from-rose-950/40 dark:via-amber-950/40 dark:to-rose-950/40 border border-rose-200 dark:border-rose-800/60 hover:border-rose-400 dark:hover:border-rose-600 shadow-sm transition-all cursor-pointer flex flex-col justify-between gap-3.5"
+        >
+          <div className="flex items-start gap-3.5 text-right">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-rose-600 via-rose-500 to-amber-600 text-white flex items-center justify-center shadow-md shadow-rose-600/20 shrink-0 group-hover:scale-105 transition-transform mt-0.5">
+              <FileDown className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white group-hover:text-rose-600 dark:group-hover:text-rose-300 transition-colors">
+                  تحويل الصورة إلى PDF فورياً
+                </h4>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                  جديد
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mt-1">
+                حوّل أي صورة أو فاتورة مباشرة إلى مستند PDF عالي الجودة مع ضبط الحجم (A4، ملء الصفحة) والطباعة والمشاركة الفورية بدون تحميل!
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 flex items-center justify-between text-xs font-bold text-rose-600 dark:text-rose-400">
+            <span>اختيار صورة وتحويلها لـ PDF</span>
+            <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1.5 transition-transform" />
+          </div>
+        </div>
+
+        {/* Direct Text Document Callout Banner */}
+        <div 
+          onClick={onOpenNewTextDocument}
+          className="group relative p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-purple-900/10 via-indigo-900/10 to-purple-900/10 dark:from-purple-950/40 dark:via-indigo-950/40 dark:to-purple-950/40 border border-purple-200 dark:border-purple-800/60 hover:border-purple-400 dark:hover:border-purple-600 shadow-sm transition-all cursor-pointer flex flex-col justify-between gap-3.5"
+        >
+          <div className="flex items-start gap-3.5 text-right">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-purple-600/20 shrink-0 group-hover:scale-105 transition-transform mt-0.5">
+              <FileEdit className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
+                  لصق نص من أي مكان وتعديل الحروف
+                </h4>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
+                  مستند نصي
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mt-1">
+                الصق أي نص من واتساب أو مقال، وعدّل أي حرف (ى ↔ ي، ه ↔ ة، توحيد الهمزات)، ثم صدّره أو شاركه كـ PDF.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 flex items-center justify-between text-xs font-bold text-purple-600 dark:text-purple-400">
+            <span>فتح محرر النصوص وتعديل الحروف</span>
+            <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1.5 transition-transform" />
+          </div>
+        </div>
+
       </div>
 
       {/* Instant Ready Samples Section */}

@@ -34,6 +34,8 @@ import { CookieBanner } from './components/CookieBanner';
 import { AdBannerSlot } from './components/AdBannerSlot';
 import { AdsenseInfoSections } from './components/AdsenseInfoSections';
 import { Footer } from './components/Footer';
+import { NewTextDocumentModal } from './components/NewTextDocumentModal';
+import { ImageToPdfModal } from './components/ImageToPdfModal';
 import { OcrMode, OcrOptions, OcrResultData, ExtractionHistoryItem } from './types/ocr';
 import { optimizeImageForOcr } from './utils/imageOptimizer';
 
@@ -74,6 +76,8 @@ export default function App() {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const [isNewTextDocOpen, setIsNewTextDocOpen] = useState(false);
+  const [isImageToPdfOpen, setIsImageToPdfOpen] = useState(false);
   const [activeLegalModal, setActiveLegalModal] = useState<LegalModalType>(null);
 
   // Local Extraction History
@@ -127,6 +131,11 @@ export default function App() {
       setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
     };
     img.src = dataUrl;
+  };
+
+  const handleSelectImageForPdf = (dataUrl: string, fileName?: string) => {
+    handleImageSelected(dataUrl, fileName);
+    setIsImageToPdfOpen(true);
   };
 
   // Execute OCR Request to server endpoint
@@ -240,6 +249,40 @@ export default function App() {
     setErrorMessage(null);
   };
 
+  const handleCreateDocumentFromText = (text: string, title: string) => {
+    setImageDataUrl('text_document');
+    setImageFileName(title || 'مستند_نصي.txt');
+    setRotation(0);
+    setContrastFilter('normal');
+    setErrorMessage(null);
+
+    const words = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+    const chars = text.length;
+    const lines = text ? text.split('\n').length : 0;
+
+    const resultData: OcrResultData = {
+      extractedText: text,
+      confidence: 100,
+      detectedLanguages: ['العربية'],
+      lineCount: lines,
+      wordCount: words,
+      charCount: chars,
+      durationSeconds: 0,
+    };
+    setOcrResult(resultData);
+
+    // Save to extraction history
+    const newHistoryItem: ExtractionHistoryItem = {
+      id: `doc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      timestamp: Date.now(),
+      title: title || 'مستند نصي جاهز',
+      thumbnail: 'text_document',
+      mode: 'raw',
+      result: resultData,
+    };
+    setHistory((prev) => [newHistoryItem, ...prev.slice(0, 49)]);
+  };
+
   const handleSelectHistoryItem = (item: ExtractionHistoryItem) => {
     setImageDataUrl(item.thumbnail);
     setImageFileName(item.title);
@@ -270,6 +313,8 @@ export default function App() {
         historyCount={history.length}
         onOpenHelp={() => setIsHelpOpen(true)}
         onReset={handleReset}
+        onOpenNewTextDocument={() => setIsNewTextDocOpen(true)}
+        onOpenImageToPdf={() => setIsImageToPdfOpen(true)}
         hasActiveImage={!!imageDataUrl}
       />
 
@@ -354,28 +399,33 @@ export default function App() {
           <ImageUploader
             onImageSelected={handleImageSelected}
             onOpenCamera={() => setIsCameraOpen(true)}
+            onOpenNewTextDocument={() => setIsNewTextDocOpen(true)}
+            onSelectImageForPdf={handleSelectImageForPdf}
           />
         )}
 
-        {/* Active Workspace when an image is loaded */}
+        {/* Active Workspace when an image or document is loaded */}
         {imageDataUrl && (
           <div className="space-y-4 animate-in fade-in">
             
-            {/* Image Adjustment Toolbar */}
-            <ImageTools
-              rotation={rotation}
-              onRotateClockwise={() => setRotation((prev) => (prev + 90) % 360)}
-              onRotateCounterClockwise={() => setRotation((prev) => (prev - 90 + 360) % 360)}
-              contrastFilter={contrastFilter}
-              onChangeFilter={setContrastFilter}
-              onResetAdjustments={() => {
-                setRotation(0);
-                setContrastFilter('normal');
-              }}
-              onTriggerZoom={() => setIsZoomOpen(true)}
-              imageFileName={imageFileName}
-              imageDimensions={imageDimensions}
-            />
+            {/* Image Adjustment Toolbar (Only when working with a real image) */}
+            {imageDataUrl !== 'text_document' && (
+              <ImageTools
+                rotation={rotation}
+                onRotateClockwise={() => setRotation((prev) => (prev + 90) % 360)}
+                onRotateCounterClockwise={() => setRotation((prev) => (prev - 90 + 360) % 360)}
+                contrastFilter={contrastFilter}
+                onChangeFilter={setContrastFilter}
+                onResetAdjustments={() => {
+                  setRotation(0);
+                  setContrastFilter('normal');
+                }}
+                onTriggerZoom={() => setIsZoomOpen(true)}
+                onConvertToPdf={() => setIsImageToPdfOpen(true)}
+                imageFileName={imageFileName}
+                imageDimensions={imageDimensions}
+              />
+            )}
 
             {/* OCR Options Bar (Mode selection, toggles, execute button) */}
             {!ocrResult && !isProcessing && (
@@ -406,6 +456,7 @@ export default function App() {
                 mode={ocrOptions.mode}
                 onReExtract={handleStartOcr}
                 onNewImage={handleReset}
+                onOpenImageToPdf={() => setIsImageToPdfOpen(true)}
               />
             )}
 
@@ -447,7 +498,7 @@ export default function App() {
       />
 
       {/* High-Resolution Zoom Modal */}
-      {isZoomOpen && imageDataUrl && (
+      {isZoomOpen && imageDataUrl && imageDataUrl !== 'text_document' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
           <div className="relative max-w-5xl max-h-[90vh] flex flex-col items-center justify-center">
             <button
@@ -472,6 +523,25 @@ export default function App() {
             />
           </div>
         </div>
+      )}
+
+      {/* New Text Document & Character Modifier Modal */}
+      <NewTextDocumentModal
+        isOpen={isNewTextDocOpen}
+        onClose={() => setIsNewTextDocOpen(false)}
+        onCreateDocument={handleCreateDocumentFromText}
+      />
+
+      {/* Image to PDF Direct Converter Modal */}
+      {imageDataUrl && imageDataUrl !== 'text_document' && (
+        <ImageToPdfModal
+          isOpen={isImageToPdfOpen}
+          onClose={() => setIsImageToPdfOpen(false)}
+          imageSrc={imageDataUrl}
+          rotation={rotation}
+          contrastFilter={contrastFilter}
+          defaultTitle={imageFileName}
+        />
       )}
 
       {/* Mandatory Google AdSense Legal Modals (Privacy, Terms, About, Contact) */}
