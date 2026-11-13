@@ -87,6 +87,38 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#039;');
 }
 
+export interface PdfBackgroundPreset {
+  id: string;
+  name: string;
+  color: string;
+  isDark?: boolean;
+}
+
+export const PDF_BACKGROUND_PRESETS: PdfBackgroundPreset[] = [
+  { id: 'white', name: 'أبيض ناصع (افتراضي)', color: '#ffffff', isDark: false },
+  { id: 'parchment', name: 'ورق بردي دافئ', color: '#fef9c3', isDark: false },
+  { id: 'sepia', name: 'بيج كلاسيكي (Sepia)', color: '#fbf7ee', isDark: false },
+  { id: 'amber', name: 'عاجي ناعم', color: '#fef3c7', isDark: false },
+  { id: 'gray', name: 'رمادي مكتبي هادئ', color: '#f1f5f9', isDark: false },
+  { id: 'ice', name: 'ثلجي سماوي', color: '#e0f2fe', isDark: false },
+  { id: 'night', name: 'ليلي داكن (Slate)', color: '#1e293b', isDark: true },
+  { id: 'black', name: 'أسود فاحم (OLED)', color: '#090d16', isDark: true },
+];
+
+export function isDarkColor(hexColor: string): boolean {
+  if (!hexColor) return false;
+  let hex = hexColor.replace('#', '');
+  if (hex.length === 3) {
+    hex = hex.split('').map((c) => c + c).join('');
+  }
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
+  // Perceived luminance (YIQ)
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq < 128;
+}
+
 export interface WhitePagePdfOptions {
   title?: string;
   text: string;
@@ -96,6 +128,7 @@ export interface WhitePagePdfOptions {
   includeDate?: boolean;
   includeHeader?: boolean;
   imageThumbnail?: string | null;
+  backgroundColor?: string;
 }
 
 export function exportWhitePagePdf(options: WhitePagePdfOptions) {
@@ -108,7 +141,15 @@ export function exportWhitePagePdf(options: WhitePagePdfOptions) {
     includeDate = true,
     includeHeader = true,
     imageThumbnail = null,
+    backgroundColor = '#ffffff',
   } = options;
+
+  const isDark = isDarkColor(backgroundColor);
+  const textColor = isDark ? '#f8fafc' : '#111827';
+  const bodyTextColor = isDark ? '#e2e8f0' : '#1e293b';
+  const headerBrandColor = isDark ? '#2dd4bf' : '#0f766e';
+  const metaColor = isDark ? '#94a3b8' : '#64748b';
+  const borderColor = isDark ? '#334155' : '#e2e8f0';
 
   const fontSizes = {
     small: '13pt',
@@ -138,8 +179,10 @@ export function exportWhitePagePdf(options: WhitePagePdfOptions) {
         }
         @media print {
           html, body {
-            background-color: #ffffff !important;
-            color: #000000 !important;
+            background-color: ${backgroundColor} !important;
+            color: ${textColor} !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print {
             display: none !important;
@@ -149,14 +192,15 @@ export function exportWhitePagePdf(options: WhitePagePdfOptions) {
             border: none !important;
             padding: 0 !important;
             margin: 0 !important;
+            background: ${backgroundColor} !important;
           }
         }
         * {
           box-sizing: border-box;
         }
         body {
-          background-color: #ffffff;
-          color: #111827;
+          background-color: ${backgroundColor};
+          color: ${textColor};
           font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
           margin: 0;
           padding: 30px;
@@ -166,10 +210,11 @@ export function exportWhitePagePdf(options: WhitePagePdfOptions) {
         .page-container {
           max-width: 800px;
           margin: 0 auto;
-          background: #ffffff;
+          background: ${backgroundColor};
+          min-height: 1000px;
         }
         .header {
-          border-bottom: 2px solid #0f766e;
+          border-bottom: 2px solid ${headerBrandColor};
           padding-bottom: 12px;
           margin-bottom: 24px;
           display: flex;
@@ -179,12 +224,12 @@ export function exportWhitePagePdf(options: WhitePagePdfOptions) {
         .doc-title {
           font-size: 22pt;
           font-weight: 800;
-          color: #0f766e;
+          color: ${headerBrandColor};
           margin: 0 0 6px 0;
         }
         .meta-date {
           font-size: 10pt;
-          color: #64748b;
+          color: ${metaColor};
           font-family: sans-serif;
         }
         .thumbnail-container {
@@ -194,7 +239,7 @@ export function exportWhitePagePdf(options: WhitePagePdfOptions) {
         .thumbnail-img {
           max-height: 160px;
           max-width: 100%;
-          border: 1px solid #e2e8f0;
+          border: 1px solid ${borderColor};
           border-radius: 6px;
         }
         .content {
@@ -203,16 +248,16 @@ export function exportWhitePagePdf(options: WhitePagePdfOptions) {
           text-align: ${alignment};
           white-space: pre-wrap;
           word-break: break-word;
-          color: #1e293b;
+          color: ${bodyTextColor};
         }
         .footer {
           margin-top: 40px;
           padding-top: 10px;
-          border-top: 1px solid #e2e8f0;
+          border-top: 1px solid ${borderColor};
           display: flex;
           justify-content: space-between;
           font-size: 9pt;
-          color: #94a3b8;
+          color: ${metaColor};
         }
       </style>
     </head>
@@ -226,7 +271,7 @@ export function exportWhitePagePdf(options: WhitePagePdfOptions) {
               ${title ? `<h1 class="doc-title">${escapeHtml(title)}</h1>` : ''}
               ${includeDate ? `<div class="meta-date">تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-SA')}</div>` : ''}
             </div>
-            <div style="font-size: 10pt; font-weight: bold; color: #0f766e;">بصيرة OCR</div>
+            <div style="font-size: 10pt; font-weight: bold; color: ${headerBrandColor};">بصيرة OCR</div>
           </div>
         `
             : ''
@@ -245,7 +290,7 @@ export function exportWhitePagePdf(options: WhitePagePdfOptions) {
         <div class="content">${escapeHtml(text)}</div>
 
         <div class="footer">
-          <span>مستند نصي مستخرج بدقة عالية</span>
+          <span>مستند نصي رقمي مستخرج بدقة عالية</span>
           <span>صفحة 1</span>
         </div>
       </div>
@@ -307,7 +352,7 @@ export async function generatePdfBlobFromElement(element: HTMLElement): Promise<
     scale: 2, // 2x DPI for ultra-sharp Arabic letters and diacritics
     useCORS: true,
     logging: false,
-    backgroundColor: '#ffffff',
+    backgroundColor: null, // Allow element's actual background color (white, parchment, sepia, dark, etc.)
   });
 
   const pdf = new jsPDF({
@@ -352,7 +397,15 @@ export async function createWhitePagePdfBlob(options: WhitePagePdfOptions): Prom
     includeDate = true,
     includeHeader = true,
     imageThumbnail = null,
+    backgroundColor = '#ffffff',
   } = options;
+
+  const isDark = isDarkColor(backgroundColor);
+  const textColor = isDark ? '#f8fafc' : '#111827';
+  const bodyTextColor = isDark ? '#e2e8f0' : '#1e293b';
+  const headerBrandColor = isDark ? '#2dd4bf' : '#0f766e';
+  const metaColor = isDark ? '#94a3b8' : '#64748b';
+  const borderColor = isDark ? '#334155' : '#e2e8f0';
 
   const fontSizes = {
     small: '14px',
@@ -372,8 +425,8 @@ export async function createWhitePagePdfBlob(options: WhitePagePdfOptions): Prom
   container.style.top = '-99999px';
   container.style.left = '-99999px';
   container.style.width = '794px'; // 210mm @ 96dpi
-  container.style.backgroundColor = '#ffffff';
-  container.style.color = '#111827';
+  container.style.backgroundColor = backgroundColor;
+  container.style.color = textColor;
   container.style.padding = '40px 50px';
   container.style.direction = 'rtl';
   container.style.fontFamily = "'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif";
@@ -382,12 +435,12 @@ export async function createWhitePagePdfBlob(options: WhitePagePdfOptions): Prom
   let headerHtml = '';
   if (includeHeader) {
     headerHtml = `
-      <div style="border-bottom: 2px solid #0f766e; padding-bottom: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div style="border-bottom: 2px solid ${headerBrandColor}; padding-bottom: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end;">
         <div>
-          ${title ? `<h1 style="font-size: 24px; font-weight: 800; color: #0f766e; margin: 0 0 6px 0;">${escapeHtml(title)}</h1>` : ''}
-          ${includeDate ? `<div style="font-size: 13px; color: #64748b;">تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-SA')}</div>` : ''}
+          ${title ? `<h1 style="font-size: 24px; font-weight: 800; color: ${headerBrandColor}; margin: 0 0 6px 0;">${escapeHtml(title)}</h1>` : ''}
+          ${includeDate ? `<div style="font-size: 13px; color: ${metaColor};">تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-SA')}</div>` : ''}
         </div>
-        <div style="font-size: 14px; font-weight: bold; color: #0f766e;">بصيرة OCR</div>
+        <div style="font-size: 14px; font-weight: bold; color: ${headerBrandColor};">بصيرة OCR</div>
       </div>
     `;
   }
@@ -396,7 +449,7 @@ export async function createWhitePagePdfBlob(options: WhitePagePdfOptions): Prom
   if (imageThumbnail && imageThumbnail !== 'text_document') {
     thumbnailHtml = `
       <div style="margin-bottom: 20px; text-align: center;">
-        <img src="${imageThumbnail}" alt="Thumbnail" style="max-height: 160px; max-width: 100%; border: 1px solid #e2e8f0; border-radius: 6px;" />
+        <img src="${imageThumbnail}" alt="Thumbnail" style="max-height: 160px; max-width: 100%; border: 1px solid ${borderColor}; border-radius: 6px;" />
       </div>
     `;
   }
@@ -404,10 +457,10 @@ export async function createWhitePagePdfBlob(options: WhitePagePdfOptions): Prom
   container.innerHTML = `
     ${headerHtml}
     ${thumbnailHtml}
-    <div style="font-size: ${fontSizes[fontSize]}; line-height: ${lineHeights[lineHeight]}; text-align: ${alignment}; white-space: pre-wrap; word-break: break-word; color: #1e293b; min-height: 400px;">
+    <div style="font-size: ${fontSizes[fontSize]}; line-height: ${lineHeights[lineHeight]}; text-align: ${alignment}; white-space: pre-wrap; word-break: break-word; color: ${bodyTextColor}; min-height: 400px;">
       ${escapeHtml(text)}
     </div>
-    <div style="margin-top: 40px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8;">
+    <div style="margin-top: 40px; padding-top: 10px; border-top: 1px solid ${borderColor}; display: flex; justify-content: space-between; font-size: 11px; color: ${metaColor};">
       <span>مستند نصي رقمي مستخرج بالذكاء الاصطناعي</span>
       <span>صفحة 1 من 1</span>
     </div>
@@ -432,10 +485,11 @@ export interface ImageToPdfOptions {
   margin?: 'none' | 'small' | 'normal';
   quality?: 'high' | 'standard' | 'compressed';
   docTitle?: string;
+  backgroundColor?: string;
 }
 
 /**
- * Converts any image into a high-quality PDF blob with rotation, contrast filters, and page format options.
+ * Converts any image into a high-quality PDF blob with rotation, contrast filters, background color, and page format options.
  */
 export async function convertImageToPdfBlob(options: ImageToPdfOptions): Promise<Blob> {
   const {
@@ -446,6 +500,7 @@ export async function convertImageToPdfBlob(options: ImageToPdfOptions): Promise
     orientation = 'auto',
     margin = 'small',
     quality = 'high',
+    backgroundColor = '#ffffff',
   } = options;
 
   // 1. Load image and bake rotation & filters onto a temporary canvas
@@ -509,6 +564,12 @@ export async function convertImageToPdfBlob(options: ImageToPdfOptions): Promise
       unit: 'mm',
       format: [baseWidth, computedHeight],
     });
+
+    if (backgroundColor && backgroundColor.toLowerCase() !== '#ffffff') {
+      pdf.setFillColor(backgroundColor);
+      pdf.rect(0, 0, baseWidth, computedHeight, 'F');
+    }
+
     pdf.addImage(imgData, 'JPEG', 0, 0, baseWidth, computedHeight);
   } else {
     // Standard A4 or Letter
@@ -521,6 +582,12 @@ export async function convertImageToPdfBlob(options: ImageToPdfOptions): Promise
 
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
+
+    // Fill page background color (white, parchment, slate, etc.)
+    if (backgroundColor) {
+      pdf.setFillColor(backgroundColor);
+      pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+    }
 
     const marginMm = margin === 'none' ? 0 : margin === 'small' ? 6 : 15;
     const availW = pageWidth - marginMm * 2;

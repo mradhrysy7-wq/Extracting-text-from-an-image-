@@ -98,18 +98,18 @@ export const OcrOptionsBar: React.FC<OcrOptionsBarProps> = ({
       </div>
 
       {/* Advanced Toggles Bar */}
-      <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         
         {/* Checkbox Options */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-start sm:items-center gap-2 sm:gap-4">
           
           {/* Diacritics Toggle */}
-          <label className="flex items-center gap-2 cursor-pointer select-none">
+          <label className="flex items-center gap-2 cursor-pointer select-none py-0.5">
             <input
               type="checkbox"
               checked={options.preserveDiacritics}
               onChange={(e) => onChangeOptions({ preserveDiacritics: e.target.checked })}
-              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 dark:focus:ring-emerald-600 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 dark:focus:ring-emerald-600 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0"
             />
             <span className="text-slate-700 dark:text-slate-300 font-medium">
               الإبقاء على علامات التشكيل والحركات
@@ -117,12 +117,12 @@ export const OcrOptionsBar: React.FC<OcrOptionsBarProps> = ({
           </label>
 
           {/* Clean Formatting */}
-          <label className="flex items-center gap-2 cursor-pointer select-none">
+          <label className="flex items-center gap-2 cursor-pointer select-none py-0.5">
             <input
               type="checkbox"
               checked={options.cleanFormatting}
               onChange={(e) => onChangeOptions({ cleanFormatting: e.target.checked })}
-              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 dark:focus:ring-emerald-600 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 dark:focus:ring-emerald-600 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0"
             />
             <span className="text-slate-700 dark:text-slate-300 font-medium">
               تصحيح المسافات والهيكل تلقائياً
@@ -130,12 +130,12 @@ export const OcrOptionsBar: React.FC<OcrOptionsBarProps> = ({
           </label>
 
           {/* Auto Summarize */}
-          <label className="flex items-center gap-2 cursor-pointer select-none">
+          <label className="flex items-center gap-2 cursor-pointer select-none py-0.5">
             <input
               type="checkbox"
               checked={options.summarize}
               onChange={(e) => onChangeOptions({ summarize: e.target.checked })}
-              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 dark:focus:ring-emerald-600 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 dark:focus:ring-emerald-600 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0"
             />
             <span className="text-slate-700 dark:text-slate-300 font-medium">
               توليد ملخص تنفيذي للنص
@@ -145,11 +145,13 @@ export const OcrOptionsBar: React.FC<OcrOptionsBarProps> = ({
         </div>
 
         {/* Translation Option */}
-        <div className="flex items-center gap-2">
-          <Languages className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-slate-600 dark:text-slate-400 font-medium text-xs">
-            ترجمة فورية:
-          </span>
+        <div className="flex items-center justify-between sm:justify-start gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center gap-1.5">
+            <Languages className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="text-slate-600 dark:text-slate-400 font-medium text-xs">
+              ترجمة فورية:
+            </span>
+          </div>
           <select
             value={options.translateTo}
             onChange={(e) => onChangeOptions({ translateTo: e.target.value })}
@@ -166,14 +168,14 @@ export const OcrOptionsBar: React.FC<OcrOptionsBarProps> = ({
       </div>
 
       {/* Main Trigger Action Button */}
-      <div className="pt-2 flex justify-end">
+      <div className="pt-1 flex justify-end">
         <button
           type="button"
           onClick={onStartOcr}
           disabled={disabled || isProcessing}
           className="w-full sm:w-auto px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-sm shadow-md shadow-emerald-600/30 active:scale-98 transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className="w-4 h-4 shrink-0" />
           <span>{isProcessing ? 'جاري الاستخراج والتحليل...' : 'استخراج النص من الصورة الآن'}</span>
         </button>
       </div>

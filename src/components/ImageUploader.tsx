@@ -172,51 +172,51 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           </div>
 
           {/* Quick Action Badges */}
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5" onClick={(e) => e.stopPropagation()}>
+          <div className="pt-2 grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2 sm:gap-2.5" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <ImageIcon className="w-4 h-4" />
-              <span>اختيار من الجهاز</span>
+              <ImageIcon className="w-4 h-4 shrink-0" />
+              <span>اختيار صورة</span>
             </button>
 
             <button
               type="button"
               onClick={onOpenCamera}
-              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <Camera className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>التقاط بالكاميرا</span>
+              <Camera className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>الكاميرا</span>
             </button>
 
             <button
               type="button"
               onClick={handlePasteFromClipboardBtn}
-              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <Clipboard className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-              <span>لصق صورة (Ctrl+V)</span>
+              <Clipboard className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <span>لصق صورة</span>
             </button>
 
             <button
               type="button"
               onClick={() => pdfFileInputRef.current?.click()}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold shadow-md shadow-rose-600/25 transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold shadow-md shadow-rose-600/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               title="اختيار صورة وتحويلها إلى مستند PDF فورياً"
             >
-              <FileDown className="w-4 h-4" />
-              <span>تحويل صورة إلى PDF</span>
+              <FileDown className="w-4 h-4 shrink-0" />
+              <span>صورة إلى PDF</span>
             </button>
 
             <button
               type="button"
               onClick={onOpenNewTextDocument}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-600/25 transition-all flex items-center gap-1.5 cursor-pointer"
+              className="col-span-2 sm:col-span-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-600/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <FileEdit className="w-4 h-4" />
-              <span>لصق نص / إنشاء مستند</span>
+              <FileEdit className="w-4 h-4 shrink-0" />
+              <span>مستند جديد / لصق نص</span>
             </button>
           </div>
 

@@ -597,20 +597,20 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
         <div className={`${viewLayout === 'split' ? 'lg:col-span-7' : 'col-span-1'} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs flex flex-col overflow-hidden`}>
           
           {/* Workspace Tabs Header */}
-          <div className="px-4 pt-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 flex flex-wrap items-center justify-between gap-2">
+          <div className="px-3 sm:px-4 pt-2.5 sm:pt-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 flex flex-wrap items-center justify-between gap-2">
             
             {/* Tabs */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 overflow-x-auto max-w-full py-0.5">
               <button
                 onClick={() => setActiveTab('text')}
-                className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-t-xl border-b-2 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-2 text-xs font-bold rounded-t-xl border-b-2 transition-all cursor-pointer shrink-0 ${
                   activeTab === 'text'
                     ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400 bg-white dark:bg-slate-900 shadow-xs'
                     : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                <span>النص المستخرج (قابل للتعديل)</span>
+                <span>النص المستخرج<span className="hidden sm:inline"> (قابل للتعديل)</span></span>
               </button>
 
               {result.modeSpecificData && (
@@ -979,13 +979,13 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
               خيارات التصدير والحفظ:
             </span>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
               
               {/* Direct Share PDF Button (Without Downloading) */}
               <button
                 onClick={handleDirectSharePdf}
                 disabled={isDirectSharingPdf}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-sm shadow-emerald-600/30 transition-all cursor-pointer active:scale-98 disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-sm shadow-emerald-600/30 transition-all cursor-pointer active:scale-98 disabled:opacity-50"
                 title="وضع النص في ملف PDF ومشاركته فوراً بدون تحميل مسبق"
               >
                 {isDirectSharingPdf ? (
@@ -993,14 +993,14 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
                 ) : (
                   <Share2 className="w-3.5 h-3.5" />
                 )}
-                <span>{isDirectSharingPdf ? 'جاري تجهيز PDF...' : 'مشاركة PDF مباشرة'}</span>
+                <span>{isDirectSharingPdf ? 'جاري التجهيز...' : 'مشاركة PDF'}</span>
               </button>
 
               {/* Copy PDF File Directly Button */}
               <button
                 onClick={handleDirectCopyPdf}
                 disabled={isDirectCopyingPdf}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   copiedPdfDirect
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-emerald-50 dark:bg-emerald-950/70 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs'
@@ -1014,35 +1014,35 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
                 ) : (
                   <Copy className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 )}
-                <span>{isDirectCopyingPdf ? 'جاري تجهيز الملف...' : copiedPdfDirect ? 'تم نسخ ملف الـ PDF!' : 'نسخ ملف الـ PDF'}</span>
+                <span>{isDirectCopyingPdf ? 'جاري النسخ...' : copiedPdfDirect ? 'تم النسخ!' : 'نسخ ملف الـ PDF'}</span>
               </button>
 
               {/* Export to Clean White Page PDF (Optional) */}
               <button
                 onClick={() => setIsWhitePdfModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-900/60 shadow-2xs transition-colors cursor-pointer"
-                title="تخصيص شكل الصفحة البيضاء وتصديرها كـ PDF"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-900/60 shadow-2xs transition-colors cursor-pointer"
+                title="تخصيص شكل ولون الصفحة وتصديرها كـ PDF"
               >
                 <FileDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                <span>تخصيص صفحة PDF</span>
+                <span>تخصيص PDF</span>
               </button>
 
               {/* Convert Original Image to PDF */}
               {!isTextDoc && onOpenImageToPdf && (
                 <button
                   onClick={onOpenImageToPdf}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
                   title="تحويل الصورة الأصلية مباشرة إلى ملف PDF مع خيارات التنسيق والمشاركة"
                 >
                   <FileDown className="w-3.5 h-3.5" />
-                  <span>تحويل الصورة لـ PDF</span>
+                  <span>الصورة لـ PDF</span>
                 </button>
               )}
 
               {/* Download TXT */}
               <button
                 onClick={() => downloadTextFile(editableText, 'النص_المستخرج.txt')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xs transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xs transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>ملف نصي (.txt)</span>
@@ -1051,16 +1051,16 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
               {/* Download Word Document */}
               <button
                 onClick={() => downloadDocFile(editableText, 'المستند_المستخرج')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xs transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xs transition-colors cursor-pointer"
               >
                 <FileDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span>مستند Word (.doc)</span>
+                <span>Word (.doc)</span>
               </button>
 
               {/* Download Markdown */}
               <button
                 onClick={() => downloadTextFile(editableText, 'النص_المستخرج.md', 'text/markdown;charset=utf-8')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xs transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xs transition-colors cursor-pointer"
               >
                 <FileText className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                 <span>ماركداون (.md)</span>
@@ -1069,7 +1069,7 @@ export const ResultsWorkspace: React.FC<ResultsWorkspaceProps> = ({
               {/* Print Document */}
               <button
                 onClick={() => printDocument(editableText)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xs transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xs transition-colors cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
                 <span>طباعة</span>
